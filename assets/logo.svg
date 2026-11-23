@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Soft sunlit anime cream backdrop -->
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="0.8" y2="1">
+      <stop offset="0%" stop-color="#fff8ee"/>
+      <stop offset="55%" stop-color="#fbead7"/>
+      <stop offset="100%" stop-color="#f3d6be"/>
+    </linearGradient>
+
+    <!-- Warm terracotta-coral glossy printer shell -->
+    <linearGradient id="shellGrad" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0%" stop-color="#eb775b"/>
+      <stop offset="48%" stop-color="#d45b43"/>
+      <stop offset="100%" stop-color="#b4422f"/>
+    </linearGradient>
+
+    <!-- Soft cream visor plate -->
+    <linearGradient id="faceGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fffdf9"/>
+      <stop offset="100%" stop-color="#f5ecdf"/>
+    </linearGradient>
+
+    <!-- Warm ivory thermal paper -->
+    <linearGradient id="paperGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="78%" stop-color="#fdf8ef"/>
+      <stop offset="100%" stop-color="#f2e7d5"/>
+    </linearGradient>
+
+    <!-- Soft drop shadow filter -->
+    <filter id="softShadow" x="-15%" y="-15%" width="130%" height="135%">
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#5a2e1e" flood-opacity="0.22"/>
+    </filter>
+    <filter id="paperShadow" x="-20%" y="-10%" width="140%" height="135%">
+      <feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#3c2218" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- Rounded squircle app icon base -->
+  <rect x="24" y="24" width="464" height="464" rx="112" fill="url(#bgGrad)" stroke="#e6c4a8" stroke-width="5"/>
+
+  <!-- Subtle anime halftone / warm halo behind mascot -->
+  <circle cx="256" cy="248" r="176" fill="#ffffff" opacity="0.45"/>
+
+  <!-- Little anime four-point sparkles -->
+  <path d="M98 112 Q106 112 106 96 Q106 112 122 112 Q106 112 106 128 Q106 112 90 112 Z" fill="#e67e5f" opacity="0.85"/>
+  <path d="M406 96 Q412 96 412 84 Q412 96 424 96 Q412 96 412 108 Q412 96 400 96 Z" fill="#3ba37b" opacity="0.9"/>
+  <circle cx="416" cy="144" r="7" fill="#f3b659"/>
+  <circle cx="94" cy="158" r="5.5" fill="#e67e5f" opacity="0.55"/>
+
+  <!-- Cute little printer feet -->
+  <ellipse cx="170" cy="368" rx="28" ry="18" fill="#8f3425" stroke="#2c1f1a" stroke-width="9"/>
+  <ellipse cx="342" cy="368" rx="28" ry="18" fill="#8f3425" stroke="#2c1f1a" stroke-width="9"/>
+
+  <!-- ==================== MAIN KAWAII PRINTER BODY ==================== -->
+  <g filter="url(#softShadow)">
+    <!-- Little cute top ears / paper-roll knobs -->
+    <circle cx="152" cy="126" r="28" fill="#d96248" stroke="#2c1f1a" stroke-width="10"/>
+    <circle cx="152" cy="126" r="11" fill="#fde3cc"/>
+    <circle cx="360" cy="126" r="28" fill="#d96248" stroke="#2c1f1a" stroke-width="10"/>
+    <circle cx="360" cy="126" r="11" fill="#fde3cc"/>
+
+    <!-- Chubby rounded anime printer casing -->
+    <rect x="94" y="114" width="324" height="248" rx="74" fill="url(#shellGrad)" stroke="#2c1f1a" stroke-width="11"/>
+
+    <!-- Anime cel-shading glossy top highlight -->
+    <path d="M150 134 C198 124 314 124 362 134 C372 136 374 148 360 150 C310 144 202 144 152 150 C138 148 140 136 150 134 Z" fill="#ffffff" opacity="0.34"/>
+
+    <!-- Tiny emerald-sage status jewel + paper feed button -->
+    <circle cx="356" cy="170" r="13" fill="#39a97e" stroke="#2c1f1a" stroke-width="6"/>
+    <circle cx="352" cy="166" r="4" fill="#c9ffea"/>
+
+    <!-- Cream faceplate screen -->
+    <rect x="130" y="156" width="204" height="118" rx="40" fill="url(#faceGrad)" stroke="#2c1f1a" stroke-width="9"/>
+
+    <!-- Big sparkling anime eyes -->
+    <!-- Left eye -->
+    <ellipse cx="188" cy="212" rx="18" ry="22" fill="#2c1f1a"/>
+    <circle cx="182" cy="203" r="7.5" fill="#ffffff"/>
+    <circle cx="194" cy="221" r="3.5" fill="#ffffff" opacity="0.9"/>
+    <!-- Right eye (happy gentle smile-eye / bright sparkle) -->
+    <ellipse cx="276" cy="212" rx="18" ry="22" fill="#2c1f1a"/>
+    <circle cx="270" cy="203" r="7.5" fill="#ffffff"/>
+    <circle cx="282" cy="221" r="3.5" fill="#ffffff" opacity="0.9"/>
+
+    <!-- Cute anime rosy cheek blushes -->
+    <ellipse cx="159" cy="234" rx="14" ry="8" fill="#ff9684" opacity="0.65"/>
+    <ellipse cx="305" cy="234" rx="14" ry="8" fill="#ff9684" opacity="0.65"/>
+
+    <!-- Happy cat-like / kawaii tiny smile -->
+    <path d="M220 222 Q232 236 244 222" fill="none" stroke="#2c1f1a" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Dark printer mouth slot where receipt cheerfully comes out -->
+    <rect x="148" y="294" width="216" height="24" rx="12" fill="#2c1f1a"/>
+  </g>
+
+  <!-- ==================== SERRATED RECEIPT TONGUE POPPING OUT ==================== -->
+  <g filter="url(#paperShadow)">
+    <path d="
+      M174 304
+      L338 304
+      L338 430
+      L320 416
+      L302 432
+      L284 416
+      L266 432
+      L248 416
+      L230 432
+      L212 416
+      L194 432
+      L174 418
+      Z
+    " fill="url(#paperGrad)" stroke="#2c1f1a" stroke-width="9" stroke-linejoin="round"/>
+
+    <!-- Top inner shadow under slot -->
+    <rect x="179" y="308" width="154" height="10" fill="#d9cab4" opacity="0.45"/>
+
+    <!-- Row 1: Sage green checked task -->
+    <rect x="196" y="330" width="24" height="24" rx="7" fill="#349e74" stroke="#2c1f1a" stroke-width="4.5"/>
+    <polyline points="202,342 207,347 215,337" fill="none" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="232" y="337" width="84" height="11" rx="5.5" fill="#2c1f1a" opacity="0.82"/>
+
+    <!-- Row 2: Terracotta highlighted active task -->
+    <rect x="196" y="370" width="24" height="24" rx="7" fill="#fff5f0" stroke="#d45b43" stroke-width="4.5"/>
+    <rect x="232" y="377" width="66" height="11" rx="5.5" fill="#d45b43"/>
+
+    <!-- Tiny cute checkmark sparkle on paper corner -->
+    <circle cx="312" cy="383" r="6" fill="#f3b659"/>
+  </g>
+</svg>
