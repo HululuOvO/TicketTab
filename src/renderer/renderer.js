@@ -47,6 +47,9 @@
     thermalWave: document.getElementById('thermalWave'),
     aiSheet: document.getElementById('aiSheet'),
     aiCloseBtn: document.getElementById('aiCloseBtn'),
+    aiGuideBtn: document.getElementById('aiGuideBtn'),
+    aiGuideCard: document.getElementById('aiGuideCard'),
+    aiGuideGotItBtn: document.getElementById('aiGuideGotItBtn'),
     aiPasteNowBtn: document.getElementById('aiPasteNowBtn'),
     aiPasteArea: document.getElementById('aiPasteArea'),
     aiParseBtn: document.getElementById('aiParseBtn'),
@@ -65,12 +68,26 @@
     optPinned: document.getElementById('optPinned'),
     optSound: document.getElementById('optSound'),
     optLaunch: document.getElementById('optLaunch'),
+    taskSheet: document.getElementById('taskSheet'),
+    taskSheetTitle: document.getElementById('taskSheetTitle'),
+    taskSheetCloseBtn: document.getElementById('taskSheetCloseBtn'),
+    tkUrgent: document.getElementById('tkUrgent'),
+    tkRemEnabled: document.getElementById('tkRemEnabled'),
+    tkDate: document.getElementById('tkDate'),
+    tkTime: document.getElementById('tkTime'),
+    tkRepeatControl: document.getElementById('tkRepeatControl'),
+    tkPreAlertsControl: document.getElementById('tkPreAlertsControl'),
+    tkIntervalRow: document.getElementById('tkIntervalRow'),
+    tkIntervalControl: document.getElementById('tkIntervalControl'),
+    tkTestAlertBtn: document.getElementById('tkTestAlertBtn'),
+    tkDeleteBtn: document.getElementById('tkDeleteBtn'),
     microToast: document.getElementById('microToast')
   };
 
   let currentState = null;
   let lastAddedIds = new Set();
   let editingId = null;
+  let inspectingTaskId = null;
   let autoFadeTimer = null;
   let hoverOpenTimer = null;
   let isThermalFading = false;
@@ -457,6 +474,27 @@
         meta.appendChild(aiMark);
       }
 
+      // Compact reminder chip if task has an active alarm or repeat rule
+      const rem = task.reminder || {};
+      if (!task.done && (rem.enabled || (rem.repeat && rem.repeat !== 'none'))) {
+        const rChip = document.createElement('button');
+        rChip.type = 'button';
+        rChip.className = 'rem-chip';
+        const repGlyph = rem.repeat && rem.repeat !== 'none' ? '↻' : '';
+        rChip.textContent = `${rem.enabled ? rem.time : ''}${repGlyph}`;
+        rChip.addEventListener('click', () => openTaskInspector(task.id));
+        meta.appendChild(rChip);
+      }
+
+      // Per-task quick-config button (Urgent / Reminder / Repeat / Advance 1~4 alerts)
+      const moreBtn = document.createElement('button');
+      moreBtn.type = 'button';
+      moreBtn.className = 'ticket-more';
+      if (inspectingTaskId === task.id) moreBtn.classList.add('active');
+      moreBtn.setAttribute('aria-label', 'Task reminder & options');
+      moreBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>';
+      moreBtn.addEventListener('click', () => openTaskInspector(task.id));
+
       const seq = document.createElement('span');
       seq.className = 'ticket-seq';
       seq.textContent = `#${String(task.seq).padStart(2, '0')}`;
@@ -467,12 +505,13 @@
       del.setAttribute('aria-label', 'Delete');
       del.textContent = '×';
       del.addEventListener('click', async () => {
+        if (inspectingTaskId === task.id) closeAllSheets();
         row.classList.add('tearing');
         sound.playTear();
         setTimeout(() => api.deleteTask(task.id), 190);
       });
 
-      meta.append(seq, del);
+      meta.append(moreBtn, seq, del);
       row.append(chk, textNode, meta);
       frag.appendChild(row);
     }
@@ -549,15 +588,69 @@
     }
 
     renderTasks(tasks);
+    if (inspectingTaskId) {
+      syncTaskInspector();
+    }
+  }
+
+  function findInspectingTask() {
+    if (!inspectingTaskId || !currentState) return null;
+    return (currentState.snapshot.tasks || []).find((t) => t.id === inspectingTaskId) || null;
+  }
+
+  function syncTaskInspector() {
+    const task = findInspectingTask();
+    if (!task) {
+      if (els.taskSheet.classList.contains('open')) closeAllSheets();
+      return;
+    }
+    const rem = task.reminder || { enabled: false, time: '09:00', repeat: 'none', preAlerts: 0, preIntervalMin: 15 };
+    els.taskSheetTitle.textContent = task.text;
+    els.tkUrgent.checked = task.priority === 'urgent';
+    els.tkRemEnabled.checked = Boolean(rem.enabled);
+    els.tkDate.value = task.dateKey || currentState.snapshot.activeDate || currentState.snapshot.today;
+    els.tkTime.value = rem.time || '09:00';
+
+    els.tkRepeatControl.querySelectorAll('.seg-btn').forEach((b) => {
+      b.classList.toggle('active', b.dataset.repeat === (rem.repeat || 'none'));
+    });
+    const preVal = String(rem.preAlerts || 0);
+    els.tkPreAlertsControl.querySelectorAll('.seg-btn').forEach((b) => {
+      b.classList.toggle('active', b.dataset.pre === preVal);
+    });
+    const intVal = String(rem.preIntervalMin || 15);
+    els.tkIntervalControl.querySelectorAll('.seg-btn').forEach((b) => {
+      b.classList.toggle('active', b.dataset.int === intVal);
+    });
+    els.tkIntervalRow.hidden = !(rem.preAlerts > 0);
+  }
+
+  function openTaskInspector(taskId) {
+    const already = inspectingTaskId === taskId && els.taskSheet.classList.contains('open');
+    closeAllSheets();
+    if (already) return;
+    inspectingTaskId = taskId;
+    syncTaskInspector();
+    els.taskSheet.classList.add('open');
+    els.taskSheet.setAttribute('aria-hidden', 'false');
+    if (currentState) renderTasks(currentState.snapshot.tasks);
+  }
+
+  function setAiGuideVisible(visible) {
+    els.aiGuideCard.hidden = !visible;
+    els.aiGuideBtn.classList.toggle('active', visible);
   }
 
   function closeAllSheets() {
+    inspectingTaskId = null;
     els.aiSheet.classList.remove('open');
     els.aiSheet.setAttribute('aria-hidden', 'true');
     els.aiOpenBtn.classList.remove('open');
     els.settingsSheet.classList.remove('open');
     els.settingsSheet.setAttribute('aria-hidden', 'true');
     els.settingsBtn.classList.remove('active');
+    els.taskSheet.classList.remove('open');
+    els.taskSheet.setAttribute('aria-hidden', 'true');
   }
 
   function toggleSheet(which) {
@@ -570,6 +663,8 @@
       target.setAttribute('aria-hidden', 'false');
       if (isAi) {
         els.aiOpenBtn.classList.add('open');
+        const firstTime = currentState && !currentState.snapshot.settings.aiGuideSeen;
+        setAiGuideVisible(Boolean(firstTime));
         setTimeout(() => els.aiPasteArea.focus(), 80);
       } else {
         els.settingsBtn.classList.add('active');
@@ -705,9 +800,81 @@
     els.taskInput.focus();
   });
 
-  // AI Sheet
+  // AI Sheet + First-time visual guide
   els.aiOpenBtn.addEventListener('click', () => toggleSheet('ai'));
   els.aiCloseBtn.addEventListener('click', closeAllSheets);
+  els.aiGuideBtn.addEventListener('click', () => {
+    setAiGuideVisible(els.aiGuideCard.hidden);
+  });
+  els.aiGuideGotItBtn.addEventListener('click', () => {
+    setAiGuideVisible(false);
+    api.updateSettings({ aiGuideSeen: true });
+  });
+
+  // Task Inspector Sheet (Urgent / Reminder / Date+Time / Repeat / Pre-alerts 1..4 / Test Alert)
+  els.taskSheetCloseBtn.addEventListener('click', () => {
+    closeAllSheets();
+    if (currentState) renderTasks(currentState.snapshot.tasks);
+  });
+
+  els.tkUrgent.addEventListener('change', () => {
+    if (!inspectingTaskId) return;
+    api.updateTask(inspectingTaskId, { priority: els.tkUrgent.checked ? 'urgent' : 'normal' });
+  });
+
+  els.tkRemEnabled.addEventListener('change', () => {
+    if (!inspectingTaskId) return;
+    api.updateTask(inspectingTaskId, { reminder: { enabled: els.tkRemEnabled.checked } });
+  });
+
+  els.tkDate.addEventListener('change', () => {
+    if (!inspectingTaskId || !els.tkDate.value) return;
+    const nextDate = els.tkDate.value;
+    api.updateTask(inspectingTaskId, { dateKey: nextDate }).then(() => {
+      api.setActiveDate(nextDate === currentState.snapshot.today ? null : nextDate);
+    });
+  });
+
+  els.tkTime.addEventListener('change', () => {
+    if (!inspectingTaskId || !els.tkTime.value) return;
+    api.updateTask(inspectingTaskId, { reminder: { enabled: true, time: els.tkTime.value } });
+  });
+
+  els.tkRepeatControl.querySelectorAll('.seg-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (!inspectingTaskId) return;
+      api.updateTask(inspectingTaskId, { reminder: { repeat: btn.dataset.repeat } });
+    });
+  });
+
+  els.tkPreAlertsControl.querySelectorAll('.seg-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (!inspectingTaskId) return;
+      const pre = Number(btn.dataset.pre);
+      api.updateTask(inspectingTaskId, { reminder: { enabled: true, preAlerts: pre } });
+    });
+  });
+
+  els.tkIntervalControl.querySelectorAll('.seg-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (!inspectingTaskId) return;
+      const mins = Number(btn.dataset.int);
+      api.updateTask(inspectingTaskId, { reminder: { preIntervalMin: mins } });
+    });
+  });
+
+  els.tkTestAlertBtn.addEventListener('click', () => {
+    if (!inspectingTaskId) return;
+    api.testReminder(inspectingTaskId);
+  });
+
+  els.tkDeleteBtn.addEventListener('click', () => {
+    if (!inspectingTaskId) return;
+    const id = inspectingTaskId;
+    closeAllSheets();
+    sound.playTear();
+    api.deleteTask(id);
+  });
 
   els.aiPasteNowBtn.addEventListener('click', async () => {
     cancelAutoThermalFade();
@@ -803,8 +970,13 @@
 
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      if (els.aiSheet.classList.contains('open') || els.settingsSheet.classList.contains('open')) {
+      if (
+        els.aiSheet.classList.contains('open') ||
+        els.settingsSheet.classList.contains('open') ||
+        els.taskSheet.classList.contains('open')
+      ) {
         closeAllSheets();
+        if (currentState) renderTasks(currentState.snapshot.tasks);
         return;
       }
       if (!editingId) {

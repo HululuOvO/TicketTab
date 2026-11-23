@@ -183,3 +183,52 @@ test('personalization settings validate theme, tabStyle, hoverOpen, autoFadeDone
     ctx.cleanup();
   }
 });
+
+test('task reminders support advance 1..4 alerts, snooze, and auto-spawning repeating tasks', () => {
+  const ctx = makeTempStore(new Date(2026, 10, 23, 14, 0, 0));
+  try {
+    // Natural language time & weekly repeat parsing
+    const task = ctx.store.addTask('每周一 15:00 同步产品周会');
+    assert.equal(task.reminder.enabled, true);
+    assert.equal(task.reminder.time, '15:00');
+    assert.equal(task.reminder.repeat, 'weekly');
+
+    // Configure 3 advance alerts spaced 15 minutes apart (14:15, 14:30, 14:45) + exact due (15:00)
+    ctx.store.updateTask(task.id, {
+      priority: 'urgent',
+      reminder: { enabled: true, time: '15:00', repeat: 'weekly', preAlerts: 3, preIntervalMin: 15 }
+    });
+
+    // At 14:15 -> pre-alert 1/3 (45 min before)
+    const due1 = ctx.store.collectDueReminders(new Date(2026, 10, 23, 14, 15, 0));
+    assert.equal(due1.length, 1);
+    assert.equal(due1[0].leadMin, 45);
+    assert.equal(due1[0].stepIndex, 1);
+    assert.equal(due1[0].totalPre, 3);
+
+    // Polling again at 14:16 must not duplicate
+    const dup = ctx.store.collectDueReminders(new Date(2026, 10, 23, 14, 16, 0));
+    assert.equal(dup.length, 0);
+
+    // At 14:45 -> pre-alert 3/3 (15 min before)
+    const due3 = ctx.store.collectDueReminders(new Date(2026, 10, 23, 14, 45, 0));
+    assert.equal(due3.length, 1);
+    assert.equal(due3[0].leadMin, 15);
+    assert.equal(due3[0].stepIndex, 3);
+
+    // At 15:00 -> exact due alert
+    const dueExact = ctx.store.collectDueReminders(new Date(2026, 10, 23, 15, 0, 0));
+    assert.equal(dueExact.length, 1);
+    assert.equal(dueExact[0].isExactDue, true);
+
+    // Marking repeating task done automatically schedules next week (2026-11-30)
+    const doneRes = ctx.store.toggleTask(task.id);
+    assert.equal(doneRes.spawnedNextDate, '2026-11-30');
+    const nextWeekSnap = ctx.store.getSnapshot('2026-11-30');
+    assert.equal(nextWeekSnap.tasks.length, 1);
+    assert.equal(nextWeekSnap.tasks[0].reminder.time, '15:00');
+    assert.equal(nextWeekSnap.tasks[0].reminder.repeat, 'weekly');
+  } finally {
+    ctx.cleanup();
+  }
+});

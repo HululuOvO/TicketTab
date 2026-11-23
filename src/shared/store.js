@@ -3,9 +3,62 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { extractDateFromText, parseSmartInput } = require('./date-parser');
+const { extractDateFromText, extractTimeAndRepeat, parseSmartInput } = require('./date-parser');
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
+const VALID_REPEATS = new Set(['none', 'daily', 'weekdays', 'weekly', 'monthly']);
+
+function sanitizeReminder(raw) {
+  if (!raw || typeof raw !== 'object') {
+    return {
+      enabled: false,
+      time: '09:00',
+      repeat: 'none',
+      preAlerts: 0,       // 0 | 1 | 2 | 3 | 4 advance alerts before due time
+      preIntervalMin: 15, // minutes spacing between each advance alert (5 | 10 | 15 | 30 | 60)
+      firedKeys: []
+    };
+  }
+  const time = typeof raw.time === 'string' && /^\d{2}:\d{2}$/.test(raw.time) ? raw.time : '09:00';
+  const repeat = VALID_REPEATS.has(raw.repeat) ? raw.repeat : 'none';
+  const preAlerts = Number.isInteger(raw.preAlerts) ? Math.min(4, Math.max(0, raw.preAlerts)) : 0;
+  const preIntervalMin = [5, 10, 15, 30, 60].includes(raw.preIntervalMin) ? raw.preIntervalMin : 15;
+  const firedKeys = Array.isArray(raw.firedKeys)
+    ? raw.firedKeys.filter((k) => typeof k === 'string').slice(-12)
+    : [];
+  return {
+    enabled: Boolean(raw.enabled),
+    time,
+    repeat,
+    preAlerts,
+    preIntervalMin,
+    firedKeys
+  };
+}
+
+function nextRepeatDateKey(dateKey, repeat) {
+  if (!isValidDateKey(dateKey) || !repeat || repeat === 'none') return null;
+  const [y, m, d] = dateKey.split('-').map(Number);
+  if (repeat === 'daily') return shiftDateKey(dateKey, 1);
+  if (repeat === 'weekly') return shiftDateKey(dateKey, 7);
+  if (repeat === 'weekdays') {
+    let delta = 1;
+    while (delta <= 7) {
+      const candidate = new Date(y, m - 1, d + delta);
+      const dow = candidate.getDay();
+      if (dow >= 1 && dow <= 5) return formatDateKey(candidate);
+      delta += 1;
+    }
+    return shiftDateKey(dateKey, 1);
+  }
+  if (repeat === 'monthly') {
+    const targetMonth = m; // JS 0-indexed next month = m
+    const lastDayNext = new Date(y, targetMonth + 1, 0).getDate();
+    const clampedDay = Math.min(d, lastDayNext);
+    return formatDateKey(new Date(y, targetMonth, clampedDay));
+  }
+  return null;
+}
 
 function pad2(n) {
   return String(n).padStart(2, '0');
@@ -46,6 +99,7 @@ function defaultSettings() {
     hoverOpen: false,     // optional: expand automatically on mouse hover
     theme: 'ivory',       // 'ivory' | 'matcha' | 'sky' | 'peach'
     tabStyle: 'slot',     // 'slot' | 'mascot' | 'island' | 'retro'
+    aiGuideSeen: false,   // shows beginner 3-step illustrated AI guide on first open
     launchAtLogin: false, // auto start on boot (Windows & macOS)
     aiBridgePort: 27319
   };
@@ -72,6 +126,8 @@ function sanitizeTask(raw, fallbackSeq = 1, fallbackDate = null) {
     priority: raw.priority === 'urgent' ? 'urgent' : 'normal',
     originDate: isValidDateKey(raw.originDate) ? raw.originDate : fallbackDate,
     source: raw.source === 'ai' ? 'ai' : 'manual',
+    reminder: sanitizeReminder(raw.reminder),
+    repeatSpawned: Boolean(raw.repeatSpawned),
     createdAt: typeof raw.createdAt === 'number' ? raw.createdAt : Date.now(),
     doneAt: raw.done && typeof raw.doneAt === 'number' ? raw.doneAt : null
   };
@@ -96,6 +152,7 @@ function sanitizeState(raw) {
     hoverOpen: Boolean(s.hoverOpen),
     theme: VALID_THEMES.has(s.theme) ? s.theme : 'ivory',
     tabStyle: VALID_TAB_STYLES.has(s.tabStyle) ? s.tabStyle : 'slot',
+    aiGuideSeen: Boolean(s.aiGuideSeen),
     launchAtLogin: Boolean(s.launchAtLogin),
     aiBridgePort: Number.isInteger(s.aiBridgePort) && s.aiBridgePort >= 1024 && s.aiBridgePort <= 65535
       ? s.aiBridgePort
@@ -202,6 +259,8 @@ class TicketStore {
             priority: item.priority,
             originDate: origin,
             source: item.source || 'manual',
+            reminder: sanitizeReminder(item.reminder),
+            repeatSpawned: Boolean(item.repeatSpawned),
             createdAt: Date.now(),
             doneAt: null
           });
@@ -229,12 +288,29 @@ class TicketStore {
     const now = this.nowProvider();
     let targetDate = isValidDateKey(options.dateKey) ? options.dateKey : null;
     let finalText = raw;
+    let parsedReminder = options.reminder ? sanitizeReminder(options.reminder) : sanitizeReminder(null);
 
-    if (!targetDate && options.parseDate !== false) {
-      const parsed = extractDateFromText(raw, now);
-      if (parsed.explicit) {
-        targetDate = parsed.dateKey;
-        finalText = parsed.cleanedText || raw;
+    if (options.parseDate !== false) {
+      const tr = extractTimeAndRepeat(raw);
+      if (tr.time) {
+        parsedReminder.enabled = true;
+        parsedReminder.time = tr.time;
+        if (!parsedReminder.preAlerts) parsedReminder.preAlerts = 1;
+      }
+      if (tr.repeat && tr.repeat !== 'none') {
+        parsedReminder.repeat = tr.repeat;
+      }
+      const afterTime = tr.cleanedText || raw;
+      if (!targetDate) {
+        const parsed = extractDateFromText(afterTime, now);
+        if (parsed.explicit) {
+          targetDate = parsed.dateKey;
+          finalText = parsed.cleanedText || afterTime;
+        } else {
+          finalText = afterTime;
+        }
+      } else {
+        finalText = afterTime;
       }
     }
 
@@ -244,11 +320,13 @@ class TicketStore {
     const task = {
       id: createId(),
       seq: this.nextSeq(day),
-      text: finalText.slice(0, 140),
+      text: (finalText || raw).slice(0, 140),
       done: false,
       priority: priority === 'urgent' ? 'urgent' : 'normal',
       originDate: targetDate,
       source: options.source === 'ai' ? 'ai' : 'manual',
+      reminder: parsedReminder,
+      repeatSpawned: false,
       createdAt: Date.now(),
       doneAt: null
     };
@@ -280,6 +358,8 @@ class TicketStore {
         priority: item.priority === 'urgent' ? 'urgent' : 'normal',
         originDate: targetDate,
         source: options.source === 'manual' ? 'manual' : 'ai',
+        reminder: sanitizeReminder(item.reminder),
+        repeatSpawned: false,
         createdAt: Date.now(),
         doneAt: null
       };
@@ -309,8 +389,41 @@ class TicketStore {
     if (!found) return null;
     found.task.done = !found.task.done;
     found.task.doneAt = found.task.done ? Date.now() : null;
+
+    // If a repeating task is marked done for the first time, automatically schedule its next occurrence!
+    let spawnedNext = null;
+    const repeat = found.task.reminder && found.task.reminder.repeat;
+    if (found.task.done && repeat && repeat !== 'none' && !found.task.repeatSpawned) {
+      const nextDate = nextRepeatDateKey(found.dateKey, repeat);
+      if (nextDate) {
+        const nextDay = this.ensureDay(nextDate);
+        const already = nextDay.tasks.some((t) => t.text === found.task.text && !t.done);
+        if (!already) {
+          const nextReminder = sanitizeReminder({
+            ...found.task.reminder,
+            firedKeys: []
+          });
+          spawnedNext = {
+            id: createId(),
+            seq: this.nextSeq(nextDay),
+            text: found.task.text,
+            done: false,
+            priority: found.task.priority,
+            originDate: nextDate,
+            source: found.task.source || 'manual',
+            reminder: nextReminder,
+            repeatSpawned: false,
+            createdAt: Date.now(),
+            doneAt: null
+          };
+          nextDay.tasks.unshift(spawnedNext);
+        }
+        found.task.repeatSpawned = true;
+      }
+    }
+
     this.save();
-    return { ...found.task, dateKey: found.dateKey };
+    return { ...found.task, dateKey: found.dateKey, spawnedNextDate: spawnedNext ? spawnedNext.originDate : null };
   }
 
   updateTask(id, patch = {}, dateKeyHint = null) {
@@ -324,18 +437,130 @@ class TicketStore {
     if (patch.priority === 'urgent' || patch.priority === 'normal') {
       found.task.priority = patch.priority;
     }
-    // Optional reschedule to another date
+    if (patch.reminder && typeof patch.reminder === 'object') {
+      const merged = {
+        ...sanitizeReminder(found.task.reminder),
+        ...patch.reminder
+      };
+      // Reset fired history whenever time / enabled / preAlerts / interval changes
+      if (
+        patch.reminder.time !== undefined ||
+        patch.reminder.enabled !== undefined ||
+        patch.reminder.preAlerts !== undefined ||
+        patch.reminder.preIntervalMin !== undefined
+      ) {
+        merged.firedKeys = [];
+      }
+      found.task.reminder = sanitizeReminder(merged);
+    }
     if (isValidDateKey(patch.dateKey) && patch.dateKey !== found.dateKey) {
       found.day.tasks.splice(found.idx, 1);
       const nextDay = this.ensureDay(patch.dateKey);
       found.task.seq = this.nextSeq(nextDay);
       found.task.originDate = patch.dateKey;
+      if (found.task.reminder) found.task.reminder.firedKeys = [];
       nextDay.tasks.unshift(found.task);
       this.save();
       return { ...found.task, dateKey: patch.dateKey };
     }
     this.save();
     return { ...found.task, dateKey: found.dateKey };
+  }
+
+  /**
+   * Scan pending tasks with enabled reminders and return any due alert events
+   * (supports 0..4 advance reminders spaced by preIntervalMin + exact on-time alert).
+   */
+  collectDueReminders(nowDate = null) {
+    const now = nowDate || this.nowProvider();
+    const nowMs = now.getTime();
+    const due = [];
+    let mutated = false;
+
+    for (const [dateKey, day] of Object.entries(this.state.days)) {
+      if (!day || !Array.isArray(day.tasks)) continue;
+      const [y, m, d] = dateKey.split('-').map(Number);
+
+      for (const task of day.tasks) {
+        if (task.done) continue;
+        const rem = task.reminder;
+        if (!rem || !rem.enabled || !rem.time) continue;
+
+        const [hh, mm] = rem.time.split(':').map(Number);
+        const dueAt = new Date(y, m - 1, d, hh, mm, 0, 0).getTime();
+        if (!Number.isFinite(dueAt)) continue;
+
+        const fired = new Set(Array.isArray(rem.firedKeys) ? rem.firedKeys : []);
+        const preCount = Math.min(4, Math.max(0, rem.preAlerts || 0));
+        const intervalMin = rem.preIntervalMin || 15;
+
+        // Build schedule checkpoints: pre-alert #1 (earliest) .. pre-alert #N .. due (0 min before)
+        const checkpoints = [];
+        for (let k = preCount; k >= 1; k--) {
+          const leadMin = k * intervalMin;
+          checkpoints.push({
+            key: `${dateKey}@${rem.time}-pre${k}`,
+            triggerMs: dueAt - leadMin * 60000,
+            leadMin,
+            stepIndex: preCount - k + 1,
+            totalPre: preCount,
+            isExactDue: false
+          });
+        }
+        checkpoints.push({
+          key: `${dateKey}@${rem.time}-due`,
+          triggerMs: dueAt,
+          leadMin: 0,
+          stepIndex: preCount + 1,
+          totalPre: preCount,
+          isExactDue: true
+        });
+
+        for (const cp of checkpoints) {
+          if (fired.has(cp.key)) continue;
+          // Trigger if within [triggerMs, triggerMs + 10 min window] so waking from sleep doesn't spam ancient alerts
+          if (nowMs >= cp.triggerMs && nowMs <= cp.triggerMs + 10 * 60000) {
+            fired.add(cp.key);
+            rem.firedKeys = Array.from(fired).slice(-12);
+            mutated = true;
+            due.push({
+              taskId: task.id,
+              dateKey,
+              text: task.text,
+              priority: task.priority,
+              time: rem.time,
+              repeat: rem.repeat,
+              leadMin: cp.leadMin,
+              stepIndex: cp.stepIndex,
+              totalPre: cp.totalPre,
+              isExactDue: cp.isExactDue
+            });
+          }
+        }
+      }
+    }
+
+    if (mutated) this.save();
+    return due;
+  }
+
+  snoozeTaskReminder(id, minutes = 10) {
+    this.ensureToday();
+    const found = this.findTask(id);
+    if (!found) return null;
+    const target = new Date(this.nowProvider().getTime() + minutes * 60000);
+    const nextDate = formatDateKey(target);
+    const nextTime = `${pad2(target.getHours())}:${pad2(target.getMinutes())}`;
+    return this.updateTask(id, {
+      dateKey: nextDate,
+      reminder: {
+        ...sanitizeReminder(found.task.reminder),
+        enabled: true,
+        time: nextTime,
+        preAlerts: 0,
+        firedKeys: []
+      }
+    }, found.dateKey);
   }
 
   deleteTask(id, dateKeyHint = null) {
@@ -372,6 +597,7 @@ class TicketStore {
     if (typeof patch.carryOver === 'boolean') next.carryOver = patch.carryOver;
     if (typeof patch.autoFadeDone === 'boolean') next.autoFadeDone = patch.autoFadeDone;
     if (typeof patch.hoverOpen === 'boolean') next.hoverOpen = patch.hoverOpen;
+    if (typeof patch.aiGuideSeen === 'boolean') next.aiGuideSeen = patch.aiGuideSeen;
     if (typeof patch.launchAtLogin === 'boolean') next.launchAtLogin = patch.launchAtLogin;
     if (VALID_THEMES.has(patch.theme)) next.theme = patch.theme;
     if (VALID_TAB_STYLES.has(patch.tabStyle)) next.tabStyle = patch.tabStyle;
@@ -521,5 +747,7 @@ module.exports = {
   formatDateKey,
   shiftDateKey,
   sanitizeState,
+  sanitizeReminder,
+  nextRepeatDateKey,
   defaultSettings
 };

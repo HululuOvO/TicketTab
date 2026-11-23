@@ -200,11 +200,60 @@
 
           <div class="thermal-wave" id="thermalWave" aria-hidden="true"></div>
 
-          <!-- ==================== AI SYNC SHEET ==================== -->
+          <!-- ==================== AI SYNC SHEET (带新手 3 步图解小教程) ==================== -->
           <section class="pop-sheet" id="aiSheet" aria-hidden="true">
             <div class="sheet-head">
-              <span class="sheet-title">AI 同步</span>
+              <div class="sheet-head-left">
+                <span class="sheet-title">AI 同步</span>
+                <button id="aiGuideBtn" class="guide-pill-btn" type="button">教程</button>
+              </div>
               <button id="aiCloseBtn" class="sheet-close" type="button" aria-label="Close">×</button>
+            </div>
+
+            <!-- Interactive 3-Step Visual Mini-Guide (auto-shown once on first open, toggleable anytime) -->
+            <div class="ai-guide-card" id="aiGuideCard" hidden>
+              <div class="guide-steps">
+                <div class="guide-step">
+                  <span class="g-num">1</span>
+                  <div class="g-illus" aria-hidden="true">
+                    <svg viewBox="0 0 64 42" fill="none">
+                      <rect x="4" y="4" width="56" height="34" rx="7" fill="#fffefb" stroke="#221f1b" stroke-opacity="0.16"/>
+                      <rect x="10" y="11" width="28" height="5" rx="2.5" fill="#221f1b" fill-opacity="0.22"/>
+                      <rect x="10" y="20" width="42" height="5" rx="2.5" fill="#c95642" fill-opacity="0.72"/>
+                      <rect x="10" y="28" width="20" height="4" rx="2" fill="#221f1b" fill-opacity="0.15"/>
+                    </svg>
+                  </div>
+                  <span class="g-txt">复制任意 AI 回复</span>
+                </div>
+                <span class="g-arrow">→</span>
+                <div class="guide-step">
+                  <span class="g-num">2</span>
+                  <div class="g-illus" aria-hidden="true">
+                    <svg viewBox="0 0 64 42" fill="none">
+                      <rect x="8" y="8" width="48" height="26" rx="8" fill="#221f1b"/>
+                      <text x="32" y="25" text-anchor="middle" fill="#fffefb" font-size="11" font-weight="800">一键吸票</text>
+                    </svg>
+                  </div>
+                  <span class="g-txt">点下面黑色按钮</span>
+                </div>
+                <span class="g-arrow">→</span>
+                <div class="guide-step">
+                  <span class="g-num">3</span>
+                  <div class="g-illus" aria-hidden="true">
+                    <svg viewBox="0 0 64 42" fill="none">
+                      <rect x="6" y="5" width="24" height="32" rx="5" fill="#fffefb" stroke="#c95642" stroke-opacity="0.45"/>
+                      <rect x="11" y="12" width="14" height="3" rx="1.5" fill="#c95642"/>
+                      <rect x="11" y="19" width="10" height="3" rx="1.5" fill="#221f1b" fill-opacity="0.35"/>
+                      <rect x="34" y="5" width="24" height="32" rx="5" fill="#fffefb" stroke="#2e8b67" stroke-opacity="0.45"/>
+                      <rect x="39" y="12" width="14" height="3" rx="1.5" fill="#2e8b67"/>
+                      <rect x="39" y="19" width="10" height="3" rx="1.5" fill="#221f1b" fill-opacity="0.35"/>
+                    </svg>
+                  </div>
+                  <span class="g-txt">自动按日期排好</span>
+                </div>
+              </div>
+              <div class="guide-tip">GPT / DeepSeek / Claude / 豆包 / Kimi / WorkBuddy 全支持；客户端直连点下方「MCP 直连配置」。</div>
+              <button id="aiGuideGotItBtn" class="guide-ok-btn" type="button">知道了，开始用</button>
             </div>
 
             <button id="aiPasteNowBtn" class="sheet-primary-btn" type="button">
@@ -298,6 +347,72 @@
               <input type="checkbox" id="optLaunch" class="switch-input" />
               <span class="switch-ui"></span>
             </label>
+          </section>
+
+          <!-- ==================== TASK INSPECTOR SHEET (紧急 / 提醒 / 重复 / 提前 1~4 次) ==================== -->
+          <section class="pop-sheet task-sheet" id="taskSheet" aria-hidden="true">
+            <div class="sheet-head">
+              <span class="sheet-title task-sheet-title" id="taskSheetTitle">任务详情</span>
+              <button id="taskSheetCloseBtn" class="sheet-close" type="button" aria-label="Close">×</button>
+            </div>
+
+            <label class="setting-row toggle-row">
+              <span class="setting-label">紧急任务</span>
+              <input type="checkbox" id="tkUrgent" class="switch-input" />
+              <span class="switch-ui"></span>
+            </label>
+
+            <label class="setting-row toggle-row">
+              <span class="setting-label">热敏吐票提醒</span>
+              <input type="checkbox" id="tkRemEnabled" class="switch-input" />
+              <span class="switch-ui"></span>
+            </label>
+
+            <div class="setting-row">
+              <span class="setting-label">日期与时间</span>
+              <div class="dt-inputs">
+                <input type="date" id="tkDate" class="mini-dt-input" />
+                <input type="time" id="tkTime" class="mini-dt-input" value="09:00" />
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <span class="setting-label">重复周期</span>
+              <div class="seg-control seg-5" id="tkRepeatControl">
+                <button type="button" class="seg-btn" data-repeat="none">不重复</button>
+                <button type="button" class="seg-btn" data-repeat="daily">每天</button>
+                <button type="button" class="seg-btn" data-repeat="weekdays">工作日</button>
+                <button type="button" class="seg-btn" data-repeat="weekly">每周</button>
+                <button type="button" class="seg-btn" data-repeat="monthly">每月</button>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <span class="setting-label">提前提醒</span>
+              <div class="seg-control seg-5" id="tkPreAlertsControl">
+                <button type="button" class="seg-btn" data-pre="0">关闭</button>
+                <button type="button" class="seg-btn" data-pre="1">1次</button>
+                <button type="button" class="seg-btn" data-pre="2">2次</button>
+                <button type="button" class="seg-btn" data-pre="3">3次</button>
+                <button type="button" class="seg-btn" data-pre="4">4次</button>
+              </div>
+            </div>
+
+            <div class="setting-row" id="tkIntervalRow">
+              <span class="setting-label">提前间隔</span>
+              <div class="seg-control seg-5" id="tkIntervalControl">
+                <button type="button" class="seg-btn" data-int="5">5分</button>
+                <button type="button" class="seg-btn" data-int="10">10分</button>
+                <button type="button" class="seg-btn" data-int="15">15分</button>
+                <button type="button" class="seg-btn" data-int="30">30分</button>
+                <button type="button" class="seg-btn" data-int="60">1时</button>
+              </div>
+            </div>
+
+            <div class="task-sheet-actions">
+              <button id="tkTestAlertBtn" class="sheet-accent-btn" type="button">试吐提醒小票</button>
+              <button id="tkDeleteBtn" class="sheet-danger-btn" type="button">删除</button>
+            </div>
           </section>
 
           <div class="micro-toast" id="microToast" aria-live="polite"></div>

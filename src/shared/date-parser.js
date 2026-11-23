@@ -158,6 +158,63 @@ function extractDateFromText(rawText, baseDate = new Date()) {
   return { dateKey, cleanedText: text, explicit: false };
 }
 
+function extractTimeAndRepeat(text) {
+  let cleaned = String(text || '').trim();
+  let time = null;
+  let repeat = 'none'; // 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly'
+
+  // 1. Repeat keywords
+  if (/每天|每日|\bevery\s*day\b|\bdaily\b/i.test(cleaned)) {
+    repeat = 'daily';
+    cleaned = cleaned.replace(/每天|每日|\bevery\s*day\b|\bdaily\b/ig, ' ').trim();
+  } else if (/每个?工作日|\bweekdays?\b/i.test(cleaned)) {
+    repeat = 'weekdays';
+    cleaned = cleaned.replace(/每个?工作日|\bweekdays?\b/ig, ' ').trim();
+  } else if (/每周|每星期|\bweekly\b|\bevery\s+week\b/i.test(cleaned)) {
+    repeat = 'weekly';
+    // Keep weekday word for date extraction by replacing only the "每" prefix if followed by 周X
+    if (/每(周|星期)[一二三四五六日天1-7]/.test(cleaned)) {
+      cleaned = cleaned.replace(/每(?=(周|星期)[一二三四五六日天1-7])/, '').trim();
+    } else {
+      cleaned = cleaned.replace(/每周|每星期|\bweekly\b|\bevery\s+week\b/ig, ' ').trim();
+    }
+  } else if (/每月|\bmonthly\b|\bevery\s+month\b/i.test(cleaned)) {
+    repeat = 'monthly';
+    cleaned = cleaned.replace(/每月|\bmonthly\b|\bevery\s+month\b/ig, ' ').trim();
+  }
+
+  // 2. Time patterns: "14:30", "下午3点半", "上午9点", "晚上8点15", "9:00"
+  let m = cleaned.match(/(上午|早上|清晨|中午|下午|傍晚|晚上)?\s*(\d{1,2})\s*[:：]\s*(\d{2})/);
+  if (m) {
+    let h = Number(m[2]);
+    const min = Number(m[3]);
+    const period = m[1] || '';
+    if ((period === '下午' || period === '傍晚' || period === '晚上') && h < 12) h += 12;
+    if (period === '中午' && h < 11) h += 12;
+    if (h >= 0 && h <= 23 && min >= 0 && min <= 59) {
+      time = `${pad2(h)}:${pad2(min)}`;
+      cleaned = cleaned.replace(m[0], ' ').replace(/\s{2,}/g, ' ').trim();
+    }
+  } else {
+    m = cleaned.match(/(上午|早上|清晨|中午|下午|傍晚|晚上)?\s*(\d{1,2})\s*点(半|(\d{1,2})分?)?/);
+    if (m) {
+      let h = Number(m[2]);
+      let min = 0;
+      if (m[3] === '半') min = 30;
+      else if (m[4]) min = Number(m[4]);
+      const period = m[1] || '';
+      if ((period === '下午' || period === '傍晚' || period === '晚上') && h < 12) h += 12;
+      if (period === '中午' && h < 11) h += 12;
+      if (h >= 0 && h <= 23 && min >= 0 && min <= 59) {
+        time = `${pad2(h)}:${pad2(min)}`;
+        cleaned = cleaned.replace(m[0], ' ').replace(/\s{2,}/g, ' ').trim();
+      }
+    }
+  }
+
+  return { time, repeat, cleanedText: cleaned };
+}
+
 function detectPriority(text) {
   const urgentRe = /(!{1,2}$|\[!\]|【紧急】|【重要】|紧急|加急|优先|\bP0\b|\bURGENT\b|🔴|🔥)/i;
   if (urgentRe.test(text)) {
@@ -192,14 +249,18 @@ function parseSmartInput(raw, baseDate = new Date(), defaultDateKey = null) {
         const extracted = explicitDate
           ? { dateKey: explicitDate, cleanedText: rawText, explicit: true }
           : extractDateFromText(rawText, baseDate);
+        const tr = extractTimeAndRepeat(extracted.cleanedText);
         const dateKey = explicitDate || (extracted.explicit ? extracted.dateKey : fallbackDate);
         const pri = item.priority === 'urgent'
-          ? { priority: 'urgent', text: extracted.cleanedText }
-          : detectPriority(extracted.cleanedText);
+          ? { priority: 'urgent', text: tr.cleanedText }
+          : detectPriority(tr.cleanedText);
+        const time = typeof item.time === 'string' && /^\d{2}:\d{2}$/.test(item.time) ? item.time : tr.time;
+        const repeat = ['daily', 'weekdays', 'weekly', 'monthly'].includes(item.repeat) ? item.repeat : tr.repeat;
         return {
-          text: pri.text.slice(0, 140),
+          text: (pri.text || rawText).slice(0, 140),
           dateKey,
-          priority: pri.priority
+          priority: pri.priority,
+          reminder: time ? { enabled: true, time, repeat, preAlerts: 1, preIntervalMin: 15 } : (repeat !== 'none' ? { enabled: false, time: '09:00', repeat, preAlerts: 0, preIntervalMin: 15 } : null)
         };
       })
       .filter(Boolean);
@@ -253,7 +314,8 @@ function parseSmartInput(raw, baseDate = new Date(), defaultDateKey = null) {
     // Skip pure divider lines
     if (/^[-=_*]{3,}$/.test(line)) continue;
 
-    const extracted = extractDateFromText(line, baseDate);
+    const tr = extractTimeAndRepeat(line);
+    const extracted = extractDateFromText(tr.cleanedText || line, baseDate);
     const finalDate = extracted.explicit ? extracted.dateKey : sectionDate;
     const pri = detectPriority(extracted.cleanedText);
     const finalText = pri.text.replace(/^[\s:：,\-—·]+/, '').trim();
@@ -262,7 +324,10 @@ function parseSmartInput(raw, baseDate = new Date(), defaultDateKey = null) {
     results.push({
       text: finalText.slice(0, 140),
       dateKey: finalDate,
-      priority: pri.priority
+      priority: pri.priority,
+      reminder: tr.time
+        ? { enabled: true, time: tr.time, repeat: tr.repeat, preAlerts: 1, preIntervalMin: 15 }
+        : (tr.repeat !== 'none' ? { enabled: false, time: '09:00', repeat: tr.repeat, preAlerts: 0, preIntervalMin: 15 } : null)
     });
   }
 
@@ -271,6 +336,7 @@ function parseSmartInput(raw, baseDate = new Date(), defaultDateKey = null) {
 
 module.exports = {
   extractDateFromText,
+  extractTimeAndRepeat,
   parseSmartInput,
   formatDateKey,
   shiftDate

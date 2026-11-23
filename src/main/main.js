@@ -18,13 +18,20 @@ const { TicketStore } = require('../shared/store');
 const { startAiBridge } = require('./ai-bridge');
 
 // Fixed single transparent canvas — NEVER calls setBounds during expand/collapse!
-// All expand/collapse motion runs purely on GPU compositor inside Chromium (60/120fps butter-smooth).
-// Transparent unused region uses setIgnoreMouseEvents(true, { forward: true }) so desktop clicks pass right through.
+// On Windows, `type: 'toolbar'` + `thickFrame: false` completely eliminates the ghost white DWM titlebar bug!
 const WINDOW_WIDTH = 446;
 const WINDOW_HEIGHT = 650;
 const SCREEN_MARGIN = 18;
 
+const ALERT_WIDTH = 372;
+const ALERT_HEIGHT = 258;
+
 let mainWindow = null;
+let reminderWindow = null;
+let reminderQueue = [];
+let reminderBusy = false;
+let reminderPollTimer = null;
+
 let tray = null;
 let store = null;
 let bridgeHandle = null;
@@ -63,6 +70,18 @@ function computeWindowBounds(edgeOverride, yRatioOverride) {
   const y = clamp(rawY, wa.y + SCREEN_MARGIN, wa.y + wa.height - height - SCREEN_MARGIN);
 
   return { x, y, width, height, edge };
+}
+
+function computeReminderBounds() {
+  const display = screen.getPrimaryDisplay();
+  const wa = display.workArea;
+  const isMac = process.platform === 'darwin';
+  const x = wa.x + wa.width - ALERT_WIDTH - 16;
+  // Flush right against the macOS top menu bar (y = wa.y) OR Windows bottom taskbar (y = wa.y + wa.height - ALERT_HEIGHT)!
+  const y = isMac
+    ? wa.y
+    : wa.y + wa.height - ALERT_HEIGHT;
+  return { x, y, width: ALERT_WIDTH, height: ALERT_HEIGHT, origin: isMac ? 'top' : 'bottom' };
 }
 
 function setMousePassthrough(ignore) {
@@ -130,7 +149,6 @@ function applyExpanded(expanded) {
     mainWindow.focus();
   } else {
     mainWindow.setAlwaysOnTop(true, 'floating');
-    // Immediately allow clicking desktop areas outside the slim bookmark tab
     setMousePassthrough(true);
   }
 
@@ -146,7 +164,7 @@ function applyLaunchAtLogin(enabled) {
       });
     }
   } catch {
-    // Some dev environments restrict login item registration silently
+    // Ignore restricted environments
   }
 }
 
@@ -174,6 +192,8 @@ function createWindow() {
     height: initialBounds.height,
     icon: resolveAppIcon(),
     frame: false,
+    thickFrame: false,       // Prevents Windows DWM ghost titlebar flash
+    type: process.platform === 'win32' ? 'toolbar' : 'panel', // Eliminates OS non-client white bar completely
     transparent: true,
     resizable: false,
     movable: false,
@@ -193,6 +213,7 @@ function createWindow() {
     }
   });
 
+  mainWindow.setMenu(null);
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   mainWindow.setAlwaysOnTop(true, 'floating');
 
@@ -219,6 +240,98 @@ function createWindow() {
       applyExpanded(false);
     }
   });
+}
+
+// ==================== THERMAL RECEIPT REMINDER POPUP WINDOW ====================
+
+function ensureReminderWindow() {
+  if (reminderWindow && !reminderWindow.isDestroyed()) return reminderWindow;
+
+  const rb = computeReminderBounds();
+  reminderWindow = new BrowserWindow({
+    x: rb.x,
+    y: rb.y,
+    width: rb.width,
+    height: rb.height,
+    frame: false,
+    thickFrame: false,
+    type: process.platform === 'win32' ? 'toolbar' : 'panel',
+    transparent: true,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    focusable: false, // Never steals typing focus from user's current app!
+    hasShadow: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    show: false,
+    backgroundColor: '#00000000',
+    webPreferences: {
+      preload: path.join(__dirname, '..', 'preload', 'reminder-preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false
+    }
+  });
+
+  reminderWindow.setMenu(null);
+  reminderWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  reminderWindow.setAlwaysOnTop(true, 'screen-saver');
+  reminderWindow.loadFile(path.join(__dirname, '..', 'renderer', 'reminder.html'));
+
+  return reminderWindow;
+}
+
+function showNextReminder() {
+  if (reminderBusy || reminderQueue.length === 0) return;
+  reminderBusy = true;
+  const item = reminderQueue.shift();
+
+  const win = ensureReminderWindow();
+  const rb = computeReminderBounds();
+  win.setBounds({ x: rb.x, y: rb.y, width: rb.width, height: rb.height }, false);
+
+  const dispatch = () => {
+    if (!win || win.isDestroyed()) {
+      reminderBusy = false;
+      return;
+    }
+    win.showInactive();
+    win.webContents.send('reminder:show', {
+      ...item,
+      origin: rb.origin,
+      theme: store.state.settings.theme || 'ivory',
+      sound: store.state.settings.sound !== false
+    });
+  };
+
+  if (win.webContents.isLoading()) {
+    win.webContents.once('did-finish-load', dispatch);
+  } else {
+    dispatch();
+  }
+}
+
+function enqueueReminders(items = []) {
+  if (!items || !items.length) return;
+  reminderQueue.push(...items);
+  showNextReminder();
+}
+
+function startReminderScheduler() {
+  clearInterval(reminderPollTimer);
+  const poll = () => {
+    if (!store) return;
+    const due = store.collectDueReminders(new Date());
+    if (due.length > 0) {
+      enqueueReminders(due);
+      sendStateToRenderer();
+    }
+  };
+  setTimeout(poll, 2500);
+  reminderPollTimer = setInterval(poll, 15000);
 }
 
 function createTray() {
@@ -401,6 +514,53 @@ function registerIpc() {
     return { settings: next, snapshot: store.getSnapshot(activeDateKey) };
   });
 
+  // Preview/test the thermal receipt alert popup immediately for any task!
+  ipcMain.handle('ticket:test-reminder', (_event, taskId) => {
+    const found = taskId ? store.findTask(taskId, activeDateKey) : null;
+    const task = found ? found.task : null;
+    const rem = (task && task.reminder) || {};
+    const preCount = Math.max(1, rem.preAlerts || 1);
+    const interval = rem.preIntervalMin || 15;
+    enqueueReminders([{
+      taskId: task ? task.id : null,
+      dateKey: found ? found.dateKey : store.todayKey(),
+      text: task ? task.text : '这是一条热敏吐票提醒演示',
+      priority: task ? task.priority : 'urgent',
+      time: rem.time || '15:00',
+      repeat: rem.repeat || 'none',
+      leadMin: rem.preAlerts > 0 ? interval : 0,
+      stepIndex: 1,
+      totalPre: preCount,
+      isExactDue: !(rem.preAlerts > 0)
+    }]);
+    return { ok: true };
+  });
+
+  // Handle user actions on the thermal receipt alert popup
+  ipcMain.on('reminder:action', (_event, payload) => {
+    if (reminderWindow && !reminderWindow.isDestroyed()) {
+      reminderWindow.hide();
+    }
+    if (payload && payload.taskId) {
+      if (payload.action === 'done') {
+        store.toggleTask(payload.taskId);
+        sendStateToRenderer();
+      } else if (payload.action === 'snooze') {
+        store.snoozeTaskReminder(payload.taskId, payload.minutes || 10);
+        sendStateToRenderer();
+      } else if (payload.action === 'open') {
+        applyExpanded(true);
+      }
+    } else if (payload && payload.action === 'open') {
+      applyExpanded(true);
+    }
+
+    reminderBusy = false;
+    if (reminderQueue.length > 0) {
+      setTimeout(showNextReminder, 260);
+    }
+  });
+
   ipcMain.on('ticket:drag-move', (_event, payload) => {
     if (!mainWindow || mainWindow.isDestroyed() || isExpanded) return;
     if (!payload || typeof payload.screenX !== 'number' || typeof payload.screenY !== 'number') return;
@@ -494,6 +654,7 @@ if (!singleLock) {
     createWindow();
     createTray();
     registerShortcuts();
+    startReminderScheduler();
 
     screen.on('display-metrics-changed', () => repositionWindow());
     screen.on('display-added', () => repositionWindow());
@@ -501,6 +662,7 @@ if (!singleLock) {
   });
 
   app.on('will-quit', () => {
+    clearInterval(reminderPollTimer);
     globalShortcut.unregisterAll();
     if (bridgeHandle && bridgeHandle.server) {
       try { bridgeHandle.server.close(); } catch { /* ignore */ }

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TicketTab Alert</title>
+  <link rel="stylesheet" href="./reminder.css" />
+</head>
+<body data-origin="bottom" data-theme="ivory">
+  <div class="alert-stage" id="alertStage">
+    <div class="alert-printer" id="alertPrinter">
+
+      <!-- Flush Docked Printer Slot anchored directly against macOS Menu Bar (top) or Windows Taskbar (bottom) -->
+      <div class="cutter-bar" aria-hidden="true">
+        <span class="cutter-led" id="cutterLed"></span>
+        <span class="cutter-slot"></span>
+        <span class="cutter-brand">TICKET·ALERT</span>
+      </div>
+
+      <!-- Masked Viewport so the receipt paper literally emerges out of the slot line-by-line! -->
+      <div class="paper-viewport">
+        <div class="paper-roller" id="paperRoller">
+          <article class="alert-ticket" id="alertTicket">
+            <div class="ticket-shadow" aria-hidden="true"></div>
+
+            <div class="alert-top">
+              <span class="alert-badge" id="alertBadge">即将到期</span>
+              <span class="alert-time" id="alertTime">15:00</span>
+              <button class="alert-close" id="alertCloseBtn" type="button" aria-label="Dismiss">×</button>
+            </div>
+
+            <!-- Larger, bold, impossible-to-miss task title -->
+            <div class="alert-body" id="alertText">评审产品交互稿</div>
+
+            <div class="alert-meta" id="alertMeta"></div>
+
+            <div class="alert-actions">
+              <button class="act-btn act-done" id="actDoneBtn" type="button">完成</button>
+              <button class="act-btn act-snooze" id="actSnoozeBtn" type="button">10分后再响</button>
+              <button class="act-btn act-open" id="actOpenBtn" type="button">打开小票</button>
+            </div>
+          </article>
+
+          <!-- Crisp Sawtooth Torn Receipt Edge -->
+          <div class="alert-serrated" aria-hidden="true"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="./sound.js"></script>
+  <script src="./reminder.js"></script>
+</body>
+</html>

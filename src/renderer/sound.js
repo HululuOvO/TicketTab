@@ -179,6 +179,55 @@ class TicketSound {
       osc.stop(t0 + 0.38);
     });
   }
+
+  // Authentic rapid thermal stepper-motor feed ("zzz-zzz-zzz-ka") synced to 0.92s alert extrusion!
+  playReceiptFeed() {
+    const ctx = this.ensureCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const pulses = [0.02, 0.16, 0.34, 0.54, 0.72];
+
+    pulses.forEach((offset, idx) => {
+      const dur = 0.095;
+      const bufSize = Math.floor(ctx.sampleRate * dur);
+      const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < bufSize; i++) {
+        const env = Math.sin((i / bufSize) * Math.PI);
+        data[i] = (Math.random() * 2 - 1) * env * 0.35;
+      }
+
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.setValueAtTime(1150 + idx * 120, now + offset);
+      bp.Q.value = 2.6;
+
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.065, now + offset);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + offset + dur);
+
+      src.connect(bp);
+      bp.connect(gain);
+      gain.connect(ctx.destination);
+      src.start(now + offset);
+    });
+
+    // Final gentle chime once ticket finishes extruding
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(740, now + 0.84);
+    osc.frequency.exponentialRampToValueAtTime(880, now + 0.94);
+    g.gain.setValueAtTime(0.07, now + 0.84);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 1.06);
+    osc.connect(g);
+    g.connect(ctx.destination);
+    osc.start(now + 0.84);
+    osc.stop(now + 1.08);
+  }
 }
 
 window.ticketSound = new TicketSound();

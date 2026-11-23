@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('ticketAPI', {
   setExpanded: (expanded) => ipcRenderer.invoke('ticket:set-expanded', expanded),
   setIgnoreMouse: (ignore) => ipcRenderer.send('ticket:set-ignore-mouse', Boolean(ignore)),
   updateSettings: (patch) => ipcRenderer.invoke('ticket:update-settings', patch),
+  testReminder: (taskId) => ipcRenderer.invoke('ticket:test-reminder', taskId),
   dragMove: (screenX, screenY) => ipcRenderer.send('ticket:drag-move', { screenX, screenY }),
   dragEnd: (screenX, screenY) => ipcRenderer.invoke('ticket:drag-end', { screenX, screenY }),
   onStateChange: (handler) => {

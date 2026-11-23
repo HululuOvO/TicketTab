@@ -1,0 +1,386 @@
+:root {
+  --chassis-top: #f2ece2;
+  --chassis-bot: #e3dacb;
+  --paper-bg: #faf8f3;
+  --paper-top: #fffefb;
+  --ink: #221f1b;
+  --ink-secondary: #5e574e;
+  --ink-muted: #9a9185;
+  --seal: #c95642;
+  --seal-soft: rgba(201, 86, 66, 0.11);
+  --seal-border: rgba(201, 86, 66, 0.36);
+  --sage: #2e8b67;
+  --sage-soft: rgba(46, 139, 103, 0.12);
+  --mono: "JetBrains Mono", "Cascadia Mono", "Consolas", "SFMono-Regular", monospace;
+  --sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", -apple-system, sans-serif;
+}
+
+body[data-theme="peach"] {
+  --chassis-top: #f7e9e4;
+  --chassis-bot: #ecd6ce;
+  --paper-bg: #fdf6f3;
+  --paper-top: #fffcfa;
+  --seal: #d46374;
+  --seal-soft: rgba(212, 99, 116, 0.11);
+  --seal-border: rgba(212, 99, 116, 0.36);
+}
+body[data-theme="matcha"] {
+  --chassis-top: #e8f0e8;
+  --chassis-bot: #d8e5d9;
+  --paper-bg: #f5f9f5;
+  --paper-top: #fcfffc;
+  --seal: #3b8864;
+  --seal-soft: rgba(59, 136, 100, 0.11);
+  --seal-border: rgba(59, 136, 100, 0.35);
+}
+body[data-theme="sky"] {
+  --chassis-top: #e7eef7;
+  --chassis-bot: #d7e2f1;
+  --paper-bg: #f5f8fc;
+  --paper-top: #fcfdff;
+  --seal: #4778c2;
+  --seal-soft: rgba(71, 120, 194, 0.11);
+  --seal-border: rgba(71, 120, 194, 0.36);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  font-family: var(--sans);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Flush against Windows bottom taskbar (padding-bottom: 0) or macOS top menu bar (padding-top: 0) */
+.alert-stage {
+  width: 100%;
+  height: 100%;
+  padding: 12px 12px 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+body[data-origin="top"] .alert-stage {
+  padding: 0 12px 12px;
+  justify-content: flex-start;
+}
+
+.alert-printer {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  filter: drop-shadow(0 8px 18px rgba(24, 18, 12, 0.18));
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+body[data-origin="bottom"] .alert-printer {
+  flex-direction: column-reverse;
+}
+
+.alert-printer.visible {
+  opacity: 1;
+}
+
+/* Leaving animation: cleanly tears & glides out */
+.alert-printer.leaving {
+  opacity: 0;
+  transform: translate3d(38px, 0, 0) rotate(2deg);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.22s ease;
+}
+
+/* Flush-Docked Ceramic Printer Bezel — flat edge sits right against OS bar! */
+.cutter-bar {
+  position: relative;
+  z-index: 6;
+  height: 26px;
+  padding: 0 13px;
+  background: linear-gradient(180deg, var(--chassis-top) 0%, var(--chassis-bot) 100%);
+  border: 1px solid rgba(34, 31, 27, 0.16);
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.72);
+}
+
+body[data-origin="bottom"] .cutter-bar {
+  border-top: 1px solid rgba(34, 31, 27, 0.16);
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.cutter-led {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--seal);
+  box-shadow: 0 0 8px rgba(201, 86, 66, 0.75);
+  animation: alertBlink 1.3s ease-in-out infinite;
+}
+
+@keyframes alertBlink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.42; transform: scale(1.3); }
+}
+
+.cutter-slot {
+  flex: 1;
+  height: 5px;
+  border-radius: 99px;
+  background: #27221d;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.cutter-brand {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--ink-secondary);
+  opacity: 0.8;
+}
+
+/* Overflow-hidden viewport acts as the real physical paper slot mask! */
+.paper-viewport {
+  overflow: hidden;
+  padding: 0 10px 8px;
+  margin-top: -3px;
+}
+
+body[data-origin="bottom"] .paper-viewport {
+  padding: 8px 10px 0;
+  margin-top: 0;
+  margin-bottom: -3px;
+}
+
+.paper-roller {
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
+  transform: translate3d(0, -104%, 0);
+}
+
+body[data-origin="bottom"] .paper-roller {
+  flex-direction: column-reverse;
+  transform: translate3d(0, 104%, 0);
+}
+
+/* Stepwise realistic thermal printer feed (~0.92s — crisp, unmistakable, lively, not sluggish!) */
+.alert-printer.visible .paper-roller {
+  animation: thermalPrintDown 0.92s linear forwards;
+}
+
+body[data-origin="bottom"] .alert-printer.visible .paper-roller {
+  animation: thermalPrintUp 0.92s linear forwards;
+}
+
+/* Stepped micro-pulses mimic a real thermal stepper motor feeding paper out of the slot */
+@keyframes thermalPrintDown {
+  0%   { transform: translate3d(0, -102%, 0); }
+  16%  { transform: translate3d(0, -78%, 0); }
+  21%  { transform: translate3d(0, -76%, 0); }
+  38%  { transform: translate3d(0, -50%, 0); }
+  43%  { transform: translate3d(0, -48%, 0); }
+  62%  { transform: translate3d(0, -24%, 0); }
+  67%  { transform: translate3d(0, -22%, 0); }
+  86%  { transform: translate3d(0, -3%, 0); }
+  94%  { transform: translate3d(0, 1.5%, 0); }
+  100% { transform: translate3d(0, 0%, 0); }
+}
+
+@keyframes thermalPrintUp {
+  0%   { transform: translate3d(0, 102%, 0); }
+  16%  { transform: translate3d(0, 78%, 0); }
+  21%  { transform: translate3d(0, 76%, 0); }
+  38%  { transform: translate3d(0, 50%, 0); }
+  43%  { transform: translate3d(0, 48%, 0); }
+  62%  { transform: translate3d(0, 24%, 0); }
+  67%  { transform: translate3d(0, 22%, 0); }
+  86%  { transform: translate3d(0, 3%, 0); }
+  94%  { transform: translate3d(0, -1.5%, 0); }
+  100% { transform: translate3d(0, 0%, 0); }
+}
+
+/* Emerging Thermal Alert Ticket */
+.alert-ticket {
+  position: relative;
+  background: linear-gradient(180deg, var(--paper-top) 0%, var(--paper-bg) 100%);
+  border-left: 1px solid rgba(34, 31, 27, 0.12);
+  border-right: 1px solid rgba(34, 31, 27, 0.12);
+  padding: 14px 16px 13px;
+}
+
+.ticket-shadow {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 12px;
+  background: linear-gradient(180deg, rgba(34, 31, 27, 0.14), transparent);
+  pointer-events: none;
+}
+
+body[data-origin="bottom"] .ticket-shadow {
+  top: auto;
+  bottom: 0;
+  background: linear-gradient(0deg, rgba(34, 31, 27, 0.14), transparent);
+}
+
+.alert-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alert-badge {
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: var(--seal-soft);
+  border: 1px solid var(--seal-border);
+  color: var(--seal);
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.alert-badge.urgent {
+  background: var(--seal);
+  border-color: var(--seal);
+  color: #ffffff;
+}
+
+.alert-time {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink-secondary);
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.alert-close {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.alert-close:hover {
+  background: rgba(34, 31, 27, 0.06);
+  color: var(--ink);
+}
+
+/* Prominent, large, crystal-clear task title so the reminder catches your eye immediately */
+.alert-body {
+  margin-top: 10px;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.38;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.alert-meta {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  min-height: 15px;
+}
+
+.alert-actions {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1.5px dashed rgba(34, 31, 27, 0.13);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.act-btn {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(34, 31, 27, 0.11);
+  background: #ffffff;
+  color: var(--ink-secondary);
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease, transform 0.12s ease;
+}
+
+.act-btn:active { transform: scale(0.96); }
+
+.act-done {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fffefb;
+}
+
+.act-done:hover {
+  background: var(--sage);
+  border-color: var(--sage);
+}
+
+.act-snooze:hover,
+.act-open:hover {
+  border-color: var(--seal-border);
+  color: var(--seal);
+  background: var(--seal-soft);
+}
+
+.act-open {
+  margin-left: auto;
+}
+
+/* Crisp Sawtooth Torn Receipt Edge */
+.alert-serrated {
+  height: 9px;
+  margin-top: -1px;
+  background: var(--paper-bg);
+  flex-shrink: 0;
+  clip-path: polygon(
+    0% 0%, 100% 0%,
+    100% 100%, 95% 18%, 90% 100%, 85% 18%, 80% 100%, 75% 18%, 70% 100%, 65% 18%,
+    60% 100%, 55% 18%, 50% 100%, 45% 18%, 40% 100%, 35% 18%, 30% 100%, 25% 18%,
+    20% 100%, 15% 18%, 10% 100%, 5% 18%, 0% 100%
+  );
+}
+
+body[data-origin="bottom"] .alert-serrated {
+  margin-top: 0;
+  margin-bottom: -1px;
+  background: var(--paper-top);
+  clip-path: polygon(
+    0% 100%, 100% 100%,
+    100% 0%, 95% 82%, 90% 0%, 85% 82%, 80% 0%, 75% 82%, 70% 0%, 65% 82%,
+    60% 0%, 55% 82%, 50% 0%, 45% 82%, 40% 0%, 35% 82%, 30% 0%, 25% 82%,
+    20% 0%, 15% 82%, 10% 0%, 5% 82%, 0% 0%
+  );
+}
