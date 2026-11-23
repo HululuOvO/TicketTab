@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TicketTab</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body data-edge="right" data-phase="collapsed" data-theme="ivory" data-tab-style="slot">
+  <div id="app" class="app-shell">
+
+    <!-- ==================== COLLAPSED EDGE WIDGET (4 selectable styles + auto-fit 10+ tasks & 25m focus) ==================== -->
+    <button id="edgeTab" class="edge-tab" type="button" aria-label="TicketTab">
+
+      <!-- Style 1 (Default): Real Ceramic Paper Slot + Serrated Paper Tongue (方案2) -->
+      <span class="tab-variant tab-slot-variant" id="tabSlotVariant">
+        <span class="slot-tongue" id="slotTongue">
+          <span class="tongue-bar b1"></span>
+          <span class="tongue-val" id="slotVal">0/0</span>
+          <span class="tongue-bar b2"></span>
+        </span>
+        <span class="slot-bezel">
+          <span class="slot-led" id="slotLed"></span>
+          <span class="slot-mouth"></span>
+          <span class="slot-tick"></span>
+        </span>
+      </span>
+
+      <!-- Style 2: Peeking Anime Printer Mascot (方案1) -->
+      <span class="tab-variant tab-mascot-variant" id="tabMascotVariant">
+        <span class="mascot-paper" id="mascotPaper">
+          <span class="mascot-val" id="mascotVal">0/0</span>
+        </span>
+        <span class="mascot-head" aria-hidden="true">
+          <span class="mascot-ear"></span>
+          <span class="mascot-led" id="mascotLed"></span>
+          <span class="mascot-face">
+            <span class="m-eyes" id="mascotEyes">
+              <i class="m-eye"></i><i class="m-eye"></i>
+            </span>
+            <span class="m-mouth"></span>
+          </span>
+        </span>
+      </span>
+
+      <!-- Style 3: Floating Dynamic Island Pill (方案3) -->
+      <span class="tab-variant tab-island-variant" id="tabIslandVariant">
+        <span class="island-icon" id="islandIcon" aria-hidden="true">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 3h16v18l-2.5-1.8L15 21l-3-2-3 2-2.5-1.8L4 21V3z"/>
+            <line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="13" y2="12"/>
+          </svg>
+        </span>
+        <span class="island-val" id="islandVal">0 / 0</span>
+      </span>
+
+      <!-- Style 4: Retro Hardware Counter (方案4) -->
+      <span class="tab-variant tab-retro-variant" id="tabRetroVariant">
+        <span class="retro-grip"></span>
+        <span class="retro-lcd" id="retroVal">0/0</span>
+        <span class="retro-led" id="retroLed"></span>
+      </span>
+
+    </button>
+
+    <!-- ==================== EXPANDED THERMAL PRINTER + RECEIPT DRAWER ==================== -->
+    <div id="drawerWrap" class="drawer-wrap" aria-hidden="true">
+
+      <!-- Whisper-thin integrated edge pull handle -->
+      <button id="drawerHandle" class="drawer-handle" type="button" aria-label="Collapse">
+        <span class="handle-grip" aria-hidden="true"></span>
+        <span class="handle-chevron" aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 3.5 10.5 8 6 12.5" />
+          </svg>
+        </span>
+      </button>
+
+      <!-- Desktop Mini Thermal Receipt Printer Assembly -->
+      <div class="printer-unit">
+
+        <!-- 1. Tactile Matte-Ceramic Thermal Printer Head -->
+        <div class="printer-chassis">
+          <div class="chassis-row">
+            <div class="chassis-brand">
+              <span class="power-led" id="powerLed" aria-hidden="true"></span>
+              <span class="chassis-vents" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="chassis-name">TICKET·TAB</span>
+            </div>
+
+            <!-- Embedded 25-Min Focus Timer Counter on the Printer Head -->
+            <div class="focus-module" id="focusModule">
+              <button id="focusToggleBtn" class="focus-btn" type="button" aria-label="Focus Timer">
+                <span class="focus-icon" id="focusIcon" aria-hidden="true">
+                  <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor">
+                    <polygon points="2.5,1.5 10.5,6 2.5,10.5"/>
+                  </svg>
+                </span>
+                <span class="focus-time" id="focusTime">25:00</span>
+              </button>
+              <button id="focusResetBtn" class="focus-reset" type="button" aria-label="Reset timer" hidden>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><polyline points="3 3 3 8 8 8"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Recessed Paper Exit Slot with Serrated Cutter Lip -->
+          <div class="paper-slot" aria-hidden="true">
+            <div class="slot-inner"></div>
+          </div>
+        </div>
+
+        <!-- 2. Warm-Ivory Thermal Receipt Paper Emerging From Slot -->
+        <main class="receipt-board" id="receiptBoard">
+
+          <div class="paper-exit-shadow" aria-hidden="true"></div>
+
+          <!-- Receipt Header: Date + Editorial Stamp -->
+          <header class="receipt-head">
+            <div class="head-date">
+              <div class="serial-no" id="serialNo">NO.2026-1123</div>
+              <div class="date-row">
+                <span class="date-main" id="dateMain">11.23</span>
+                <span class="date-week" id="dateWeek">周一</span>
+              </div>
+            </div>
+
+            <div class="head-right">
+              <div class="stamp-box" id="stampBox">0 / 0</div>
+            </div>
+          </header>
+
+          <!-- Compact multi-day paper strip -->
+          <nav class="day-strip" id="dayStrip" aria-label="Dates"></nav>
+
+          <!-- Fine ink progress hairline -->
+          <div class="progress-rail" aria-hidden="true">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+
+          <!-- Direct input slot -->
+          <form id="addForm" class="add-slot" autocomplete="off">
+            <button id="priorityToggle" class="priority-btn" type="button" aria-label="Priority" data-urgent="false">
+              <span class="priority-dot"></span>
+            </button>
+            <input
+              id="taskInput"
+              class="task-input"
+              type="text"
+              maxlength="240"
+              placeholder="记一条任务，或直接粘贴 AI 笔记…"
+              spellcheck="false"
+            />
+            <button id="aiOpenBtn" class="ai-spark-btn" type="button" aria-label="AI Import">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3l1.9 5.3L19 10.2l-5.1 1.9L12 17.4l-1.9-5.3L5 10.2l5.1-1.9L12 3z"/>
+                <path d="M19 3v3M20.5 4.5h-3M5 17v3M6.5 18.5h-3"/>
+              </svg>
+            </button>
+            <button class="print-btn" type="submit" aria-label="Add">+</button>
+          </form>
+
+          <!-- Task list -->
+          <section class="ticket-list" id="ticketList" aria-label="Tasks"></section>
+
+          <!-- Footer: Receipt Barcode + Weekly Completed + Quiet Controls -->
+          <footer class="receipt-foot">
+            <div class="foot-left">
+              <div class="receipt-barcode" aria-hidden="true">
+                <i class="w2"></i><i class="w1"></i><i class="w3"></i><i class="w1"></i>
+                <i class="w2"></i><i class="w1"></i><i class="w1"></i><i class="w3"></i>
+                <i class="w1"></i><i class="w2"></i>
+              </div>
+              <span class="week-cleared" id="weekCleared">本周已清 0 项</span>
+            </div>
+
+            <div class="foot-actions">
+              <button id="tearBtn" class="icon-btn tear-btn" type="button" aria-label="Thermal fade done" hidden>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2c.7 3.2-1.8 5.2-1.8 8.2a3.3 3.3 0 0 0 6.6 0c0-1.9-.9-3.6-1.9-5.2 2.9 1.7 5.1 4.8 5.1 8.4a8 8 0 1 1-16 0c0-4.8 3.6-8.4 8-11.4z"/>
+                </svg>
+              </button>
+              <button id="pinBtn" class="icon-btn" type="button" aria-label="Pin">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z"/>
+                </svg>
+              </button>
+              <button id="settingsBtn" class="icon-btn" type="button" aria-label="Settings">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="4" y1="7" x2="20" y2="7"/>
+                  <circle cx="9" cy="7" r="2.2" fill="currentColor"/>
+                  <line x1="4" y1="17" x2="20" y2="17"/>
+                  <circle cx="15" cy="17" r="2.2" fill="currentColor"/>
+                </svg>
+              </button>
+            </div>
+          </footer>
+
+          <div class="thermal-wave" id="thermalWave" aria-hidden="true"></div>
+
+          <!-- ==================== AI SYNC SHEET ==================== -->
+          <section class="pop-sheet" id="aiSheet" aria-hidden="true">
+            <div class="sheet-head">
+              <span class="sheet-title">AI 同步</span>
+              <button id="aiCloseBtn" class="sheet-close" type="button" aria-label="Close">×</button>
+            </div>
+
+            <button id="aiPasteNowBtn" class="sheet-primary-btn" type="button">
+              从剪贴板一键吸票
+            </button>
+
+            <textarea
+              id="aiPasteArea"
+              class="ai-textarea"
+              rows="4"
+              placeholder="或把 GPT / DeepSeek / Claude / 会议纪要粘到这里…"
+              spellcheck="false"
+            ></textarea>
+
+            <button id="aiParseBtn" class="sheet-accent-btn" type="button">拆分日期并出票</button>
+
+            <div class="ai-copy-grid">
+              <button id="copyPromptBtn" class="sheet-chip-btn" type="button">通用 AI 口令</button>
+              <button id="copyMcpBtn" class="sheet-chip-btn" type="button">MCP 直连配置</button>
+              <button id="copyApiBtn" class="sheet-chip-btn" type="button">本地接口地址</button>
+            </div>
+          </section>
+
+          <!-- ==================== PERSONALIZATION SETTINGS SHEET ==================== -->
+          <section class="pop-sheet" id="settingsSheet" aria-hidden="true">
+            <div class="sheet-head">
+              <span class="sheet-title">偏好设置</span>
+              <button id="settingsCloseBtn" class="sheet-close" type="button" aria-label="Close">×</button>
+            </div>
+
+            <div class="setting-row">
+              <span class="setting-label">悬浮样式</span>
+              <div class="seg-control seg-4" id="tabStyleControl">
+                <button type="button" class="seg-btn" data-tab-style="slot">出纸口</button>
+                <button type="button" class="seg-btn" data-tab-style="mascot">小票机</button>
+                <button type="button" class="seg-btn" data-tab-style="island">胶囊</button>
+                <button type="button" class="seg-btn" data-tab-style="retro">硬件</button>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <span class="setting-label">纸张配色</span>
+              <div class="theme-dots" id="themeDots">
+                <button type="button" class="theme-dot" data-theme="ivory" aria-label="Ivory"></button>
+                <button type="button" class="theme-dot" data-theme="peach" aria-label="Peach"></button>
+                <button type="button" class="theme-dot" data-theme="matcha" aria-label="Matcha"></button>
+                <button type="button" class="theme-dot" data-theme="sky" aria-label="Sky"></button>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <span class="setting-label">贴边位置</span>
+              <div class="seg-control">
+                <button type="button" class="seg-btn" id="edgeLeftBtn">左侧</button>
+                <button type="button" class="seg-btn" id="edgeRightBtn">右侧</button>
+              </div>
+            </div>
+
+            <label class="setting-row toggle-row">
+              <span class="setting-label">悬停自动滑出</span>
+              <input type="checkbox" id="optHoverOpen" class="switch-input" />
+              <span class="switch-ui"></span>
+            </label>
+
+            <label class="setting-row toggle-row">
+              <span class="setting-label">全部完成热敏消字</span>
+              <input type="checkbox" id="optAutoFade" class="switch-input" />
+              <span class="switch-ui"></span>
+            </label>
+
+            <label class="setting-row toggle-row">
+              <span class="setting-label">未完成自动顺延</span>
+              <input type="checkbox" id="optCarryOver" class="switch-input" />
+              <span class="switch-ui"></span>
+            </label>
+
+            <label class="setting-row toggle-row">
+              <span class="setting-label">失焦不自动收起</span>
+              <input type="checkbox" id="optPinned" class="switch-input" />
+              <span class="switch-ui"></span>
+            </label>
+
+            <label class="setting-row toggle-row">
+              <span class="setting-label">轻量纸张音效</span>
+              <input type="checkbox" id="optSound" class="switch-input" />
+              <span class="switch-ui"></span>
+            </label>
+
+            <label class="setting-row toggle-row">
+              <span class="setting-label">开机自动启动</span>
+              <input type="checkbox" id="optLaunch" class="switch-input" />
+              <span class="switch-ui"></span>
+            </label>
+          </section>
+
+          <div class="micro-toast" id="microToast" aria-live="polite"></div>
+
+        </main>
+
+        <!-- True Physical Zigzag Torn Receipt Paper Edge -->
+        <div class="receipt-serrated" aria-hidden="true"></div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script src="./sound.js"></script>
+  <script src="./renderer.js"></script>
+</body>
+</html>
